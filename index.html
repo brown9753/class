@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>카카오맵 장소 검색 서비스</title>
+    <title>카카오맵 수면 장소 찾기</title>
     <style>
         /* 기본 여백 제거 및 폰트 설정 */
         * {
@@ -22,18 +22,49 @@
             height: 100vh;
         }
 
-        /* 왼쪽 사이드바 (검색창 + 리스트) */
+        /* 왼쪽 사이드바 (탭 + 검색창 + 리스트) */
         #sidebar {
-            width: 350px;
+            width: 400px;
             background-color: #f8f9fa;
             display: flex;
             flex-direction: column;
             border-right: 1px solid #ddd;
+            z-index: 2; /* 지도보다 위에 표시 */
         }
 
-        /* 검색 영역 스타일 */
+        /* 탭 메뉴 스타일 */
+        #tabs {
+            display: flex;
+            flex-wrap: wrap;
+            background-color: #fff;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 12px 5px;
+            background-color: #fff;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            color: #555;
+            transition: all 0.2s;
+        }
+
+        .tab-btn:hover {
+            background-color: #f1f1f1;
+        }
+
+        .tab-btn.active {
+            color: #000;
+            border-bottom: 3px solid #ffe812; /* 카카오 옐로우 */
+        }
+
+        /* 검색 영역 스타일 (탭 기능으로 대체할 수도 있지만 일단 유지) */
         #search-box {
-            padding: 20px;
+            padding: 15px;
             background-color: #ffffff;
             border-bottom: 1px solid #ddd;
             display: flex;
@@ -82,9 +113,15 @@
         #places-list li p {
             font-size: 13px;
             color: #777;
+            margin-bottom: 3px;
         }
 
-        /* 오른쪽 지도 영역 (나머지 공간 모두 차지) */
+        .distance-info {
+            color: #007bff !important;
+            font-weight: bold;
+        }
+
+        /* 오른쪽 지도 영역 */
         #map-wrapper {
             flex: 1;
             position: relative;
@@ -94,16 +131,48 @@
             width: 100%;
             height: 100%;
         }
+
+        /* 내 위치 커스텀 오버레이 스타일 (파란 점) */
+        .my-location-dot {
+            width: 16px;
+            height: 16px;
+            background-color: #007bff;
+            border-radius: 50%;
+            border: 3px solid #fff;
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+        }
+        
+        /* 팝업 길찾기 버튼 */
+        .route-btn {
+            display: inline-block;
+            margin-top: 8px;
+            padding: 5px 10px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
 
     <div id="container">
         <div id="sidebar">
-            <div id="search-box">
-                <input type="text" id="keyword" placeholder="장소를 검색하세요" onkeypress="if(event.keyCode==13) { searchPlaces(); }">
-                <button id="search-btn" onclick="searchPlaces()">검색</button>
+            <div id="tabs">
+                <button class="tab-btn active" onclick="changeTab('도서관', this)">도서관</button>
+                <button class="tab-btn" onclick="changeTab('만화카페', this)">만화카페</button>
+                <button class="tab-btn" onclick="changeTab('찜질방', this)">찜질방</button>
+                <button class="tab-btn" onclick="changeTab('카페', this)">카페</button>
+                <button class="tab-btn" onclick="changeTab('노래방', this)">노래방</button>
             </div>
+
+            <div id="search-box">
+                <input type="text" id="keyword" placeholder="직접 검색어 입력" onkeypress="if(event.keyCode==13) { customSearch(); }">
+                <button id="search-btn" onclick="customSearch()">검색</button>
+            </div>
+            
             <ul id="places-list"></ul>
         </div>
 
@@ -115,151 +184,193 @@
     <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=e57825b9ee14bd78fc0b425ebdf9f8dc&libraries=services&autoload=false"></script>
     
     <script>
-        // 전역 변수 선언
+        // 전역 변수 선언 (Global variables)
         let map; 
         let markers = []; 
         let ps; 
-        let infowindow; // 마커 클릭 시 띄울 팝업창(인포윈도우) 전역 변수
+        let infowindow;
+        let currentLat, currentLng; // 현재 위치 좌표 저장용
+        let currentCategory = '도서관'; // 초기 탭 설정
 
         // 1. 현재 위치 가져오기 및 지도 초기화
         function initGeolocation() {
             if (navigator.geolocation) {
-                // 위치 권한을 요청하고 현재 위치를 가져옴
                 navigator.geolocation.getCurrentPosition(function(position) {
-                    const lat = position.coords.latitude; // 위도
-                    const lng = position.coords.longitude; // 경도
-                    loadMap(lat, lng);
+                    currentLat = position.coords.latitude; 
+                    currentLng = position.coords.longitude; 
+                    loadMap(currentLat, currentLng);
                 }, function(error) {
-                    // 위치 권한 거부 시 기본 좌표(서울시청) 사용
-                    alert("위치 권한을 허용하지 않아 기본 위치로 지도를 엽니다.");
-                    loadMap(37.566826, 126.9786567);
+                    alert("위치 권한을 허용하지 않아 기본 위치(서울시청)로 지도를 엽니다.");
+                    currentLat = 37.566826;
+                    currentLng = 126.9786567;
+                    loadMap(currentLat, currentLng);
                 });
             } else {
                 alert("이 브라우저에서는 위치 정보를 지원하지 않습니다.");
-                loadMap(37.566826, 126.9786567);
+                currentLat = 37.566826;
+                currentLng = 126.9786567;
+                loadMap(currentLat, currentLng);
             }
         }
 
         // 2. 카카오맵 로드 및 렌더링
         function loadMap(lat, lng) {
-            // 카카오맵 스크립트가 완전히 로드된 후 실행 (로딩 오류 방지)
             kakao.maps.load(function() {
                 const mapContainer = document.getElementById('map'); 
                 const mapOption = {
-                    center: new kakao.maps.LatLng(lat, lng), // 지도의 중심좌표
-                    level: 5 // 지도의 확대 레벨
+                    center: new kakao.maps.LatLng(lat, lng),
+                    level: 5 
                 };
 
-                // 지도 생성
                 map = new kakao.maps.Map(mapContainer, mapOption);
-
-                // 장소 검색 객체 생성
                 ps = new kakao.maps.services.Places();
-
-                // 인포윈도우(팝업창) 객체 생성
                 infowindow = new kakao.maps.InfoWindow({ zIndex: 1 });
 
-                // 현재 위치에 마커 표시
-                const currentLocMarker = new kakao.maps.Marker({
+                // 내 위치 파란 점(CustomOverlay) 표시
+                const myLocationContent = '<div class="my-location-dot"></div>';
+                const myLocationOverlay = new kakao.maps.CustomOverlay({
                     position: new kakao.maps.LatLng(lat, lng),
+                    content: myLocationContent,
                     map: map
                 });
+
+                // 초기 카테고리로 검색 시작
+                searchPlaces(currentCategory);
             });
         }
 
-        // 3. 키워드로 장소 검색하기
-        function searchPlaces() {
-            const keyword = document.getElementById('keyword').value;
+        // 3. 탭 클릭 시 카테고리 변경 함수
+        function changeTab(category, btnElement) {
+            currentCategory = category;
+            
+            // 모든 탭 버튼의 active 클래스 제거 후 클릭된 버튼만 추가
+            const tabButtons = document.querySelectorAll('.tab-btn');
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            btnElement.classList.add('active');
 
+            // 검색창 텍스트 초기화 및 해당 카테고리 검색 실행
+            document.getElementById('keyword').value = '';
+            searchPlaces(currentCategory);
+        }
+
+        // 3-1. 직접 검색창 입력 시 실행 함수
+        function customSearch() {
+            const keyword = document.getElementById('keyword').value;
             if (!keyword.replace(/^\s+|\s+$/g, '')) {
                 alert('검색어를 입력해주세요!');
                 return false;
             }
+            
+            // 탭 활성화 상태 초기화
+            const tabButtons = document.querySelectorAll('.tab-btn');
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            
+            currentCategory = keyword; // 검색용 카테고리를 직접 입력한 키워드로 대체
+            searchPlaces(keyword);
+        }
 
-            // 주변 장소 검색을 위해 현재 지도의 중심 좌표를 기준으로 반경 설정
+        // 4. 키워드로 장소 검색하기
+        function searchPlaces(keyword) {
+            // 내 위치 기준으로 검색 반경 및 거리 정렬 옵션 설정
             const searchOptions = {
-                location: map.getCenter(), // 현재 지도 중심 좌표 기준 주변 검색
-                radius: 2000 // 중심 반경 2km 이내 검색
+                location: new kakao.maps.LatLng(currentLat, currentLng), 
+                radius: 3000, // 3km 이내
+                sort: kakao.maps.services.SortBy.DISTANCE // 거리순 정렬
             };
 
-            // 장소 검색 실행 (옵션 추가)
             ps.keywordSearch(keyword, placesSearchCB, searchOptions); 
         }
 
-        // 4. 장소 검색 완료 시 호출되는 콜백 함수
+        // 5. 검색 완료 콜백 함수
         function placesSearchCB(data, status, pagination) {
             if (status === kakao.maps.services.Status.OK) {
-                displayPlaces(data); // 검색 결과 표시
+                displayPlaces(data); 
             } else if (status === kakao.maps.services.Status.ZERO_RESULT) {
-                alert('검색 결과가 존재하지 않습니다.');
-                return;
+                // 검색 결과가 없으면 리스트와 마커 지우기
+                document.getElementById('places-list').innerHTML = '<li style="text-align:center;">검색 결과가 존재하지 않습니다.</li>';
+                removeMarkers();
+                infowindow.close();
             } else if (status === kakao.maps.services.Status.ERROR) {
                 alert('검색 결과 중 오류가 발생했습니다.');
-                return;
             }
         }
 
-        // 5. 검색 결과를 왼쪽 리스트와 지도 마커로 표시
+        // 6. 카테고리별 마커 아이콘 색상을 반환하는 함수 (SVG 데이터)
+        function getMarkerIconUrl(category) {
+            let color = "%23333333"; // 기본 검정
+            if (category === "도서관") color = "%234CAF50"; // 초록
+            else if (category === "만화카페") color = "%23FF9800"; // 주황
+            else if (category === "찜질방") color = "%239C27B0"; // 보라
+            else if (category === "카페") color = "%23795548"; // 갈색
+            else if (category === "노래방") color = "%23E91E63"; // 핑크
+
+            // 핀 모양의 SVG 마커 생성
+            return `data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" width="28" height="40" viewBox="0 0 28 40"><path d="M14 0C6.268 0 0 6.268 0 14c0 10.5 14 26 14 26s14-15.5 14-26c0-7.732-6.268-14-14-14z" fill="${color}"/><circle cx="14" cy="14" r="6" fill="%23ffffff"/></svg>`;
+        }
+
+        // 7. 검색 결과를 리스트와 지도에 표시
         function displayPlaces(places) {
             const listEl = document.getElementById('places-list');
             const bounds = new kakao.maps.LatLngBounds(); 
-            const keyword = document.getElementById('keyword').value; // 현재 입력된 키워드 확인
             
-            // 기존에 표시된 리스트, 마커, 열려있는 팝업창 모두 초기화/제거
+            // 내 위치도 범위에 포함하여 지도가 축소될 때 내 위치가 보이도록 함
+            bounds.extend(new kakao.maps.LatLng(currentLat, currentLng));
+
             listEl.innerHTML = '';
             removeMarkers();
             infowindow.close();
 
+            // 현재 선택된 탭(카테고리)에 따른 마커 이미지 설정
+            const markerImageUrl = getMarkerIconUrl(currentCategory);
+            const markerImageSize = new kakao.maps.Size(28, 40);
+            const markerImage = new kakao.maps.MarkerImage(markerImageUrl, markerImageSize, {offset: new kakao.maps.Point(14, 40)});
+
             for (let i = 0; i < places.length; i++) {
-                // 마커가 표시될 위치
                 const placePosition = new kakao.maps.LatLng(places[i].y, places[i].x);
                 
-                // 마커 기본 옵션 설정
-                let markerOptions = {
+                // 장소까지의 거리 (미터 단위)
+                const distanceInfo = places[i].distance ? parseInt(places[i].distance) + 'm' : '거리 정보 없음';
+
+                const markerOptions = {
                     position: placePosition,
-                    map: map
+                    map: map,
+                    image: markerImage
                 };
 
-                // 검색어에 '카페'가 포함된 경우 커피 이모지(☕) 마커로 커스텀 스타일 적용
-                if (keyword.includes('카페')) {
-                    const imageSrc = 'data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36"><text y="28" font-size="28">☕</text></svg>';
-                    const imageSize = new kakao.maps.Size(36, 36);
-                    const markerImage = new kakao.maps.MarkerImage(imageSrc, imageSize);
-                    markerOptions.image = markerImage;
-                }
-
-                // 마커 생성 및 지도 표시
                 const marker = new kakao.maps.Marker(markerOptions);
-
-                // 생성된 마커를 배열에 추가 (나중에 지우기 위함)
                 markers.push(marker);
-
-                // 지도의 영역을 마커들의 위치에 맞게 확장
                 bounds.extend(placePosition);
 
-                // 팝업창(인포윈도우)에 표시할 HTML 컨텐츠 구성
+                // 길찾기 링크 생성 (카카오맵 웹 길찾기로 연결)
+                const routeUrl = `https://map.kakao.com/link/to/${places[i].place_name},${places[i].y},${places[i].x}`;
+
+                // 팝업 컨텐츠 구성 (이름, 주소, 거리, 영업시간, 길찾기 버튼)
                 const popupContent = `
-                    <div style="padding:10px; font-size:12px; min-width:150px; line-height: 1.5;">
-                        <strong style="display:block; margin-bottom:3px;">${places[i].place_name}</strong>
+                    <div style="padding:15px; font-size:13px; min-width:200px; line-height: 1.5; box-sizing: border-box;">
+                        <strong style="display:block; font-size:15px; margin-bottom:5px;">${places[i].place_name}</strong>
                         <span style="color:#666; display:block;">${places[i].road_address_name || places[i].address_name}</span>
+                        <span style="color:#007bff; display:block; font-weight:bold; margin-top:3px;">📍 내 위치에서 ${distanceInfo}</span>
+                        <span style="color:#28a745; display:block; font-size:12px; margin-top:3px;">⏰ 영업시간: 확인필요 (API 미제공)</span>
+                        <a href="${routeUrl}" target="_blank" class="route-btn">도보/대중교통 길찾기 🚶</a>
                     </div>
                 `;
 
-                // 마커 클릭 시 이름·주소 팝업 표시
+                // 마커 클릭 이벤트 설정
                 kakao.maps.event.addListener(marker, 'click', function() {
                     infowindow.setContent(popupContent);
                     infowindow.open(map, marker);
                 });
 
-                // 리스트 아이템(HTML) 생성 (이름, 주소, 가상의 영업 시간 나열)
+                // 리스트 아이템 HTML 구성
                 const li = document.createElement('li');
                 li.innerHTML = `
                     <h5>${places[i].place_name}</h5>
                     <p>${places[i].road_address_name || places[i].address_name}</p>
-                    <p style="color: #28a745; font-size: 12px; margin-top: 5px; font-weight: bold;">⏰ 영업시간: 09:00 ~ 22:00</p>
+                    <p class="distance-info">📍 내 위치에서 ${distanceInfo}</p>
+                    <p style="color: #28a745; font-size: 12px; margin-top: 3px;">⏰ 영업시간: 09:00 ~ 22:00 (예시)</p>
                 `;
                 
-                // 리스트 아이템 클릭 시 해당 위치로 지도 이동 및 팝업창 표시
+                // 리스트 클릭 이벤트 설정
                 li.onclick = function() {
                     map.setCenter(placePosition);
                     infowindow.setContent(popupContent);
@@ -269,11 +380,11 @@
                 listEl.appendChild(li);
             }
 
-            // 검색된 모든 마커가 보이도록 지도 범위 재설정
+            // 검색된 마커들과 내 위치가 모두 보이도록 지도 범위 재설정
             map.setBounds(bounds);
         }
 
-        // 6. 지도 위에 표시되고 있는 기존 마커들 모두 제거
+        // 8. 기존 마커들 모두 제거
         function removeMarkers() {
             for (let i = 0; i < markers.length; i++) {
                 markers[i].setMap(null);
@@ -281,9 +392,8 @@
             markers = [];
         }
 
-        // 페이지 로드가 완료되면 위치 정보를 가져오는 함수 실행
+        // 페이지 로드 완료 시 실행
         window.onload = initGeolocation;
-
     </script>
 </body>
 </html>
