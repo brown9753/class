@@ -15,6 +15,33 @@
             font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
         }
         
+        /* zzz... 로딩 팝업 스타일 */
+        #loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(255, 255, 255, 0.9);
+            z-index: 9999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .zzz-text {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #555;
+            animation: sleepPulse 1.5s infinite;
+        }
+
+        @keyframes sleepPulse {
+            0% { transform: scale(1) translateY(0); opacity: 1; }
+            50% { transform: scale(1.1) translateY(-10px); opacity: 0.5; }
+            100% { transform: scale(1) translateY(0); opacity: 1; }
+        }
+
         /* 전체 화면을 Flexbox를 이용해 좌우 2분할 */
         #container {
             display: flex;
@@ -22,7 +49,7 @@
             height: 100vh;
         }
 
-        /* 왼쪽 사이드바 (탭 + 검색창 + 리스트) */
+        /* 왼쪽 사이드바 (제목 + 검색창 + 탭 + 리스트) */
         #sidebar {
             width: 400px;
             background-color: #f8f9fa;
@@ -32,54 +59,33 @@
             z-index: 2; /* 지도보다 위에 표시 */
         }
 
-        /* 탭 메뉴 스타일 */
-        #tabs {
-            display: flex;
-            flex-wrap: wrap;
-            background-color: #fff;
-            border-bottom: 1px solid #ddd;
-        }
-
-        .tab-btn {
-            flex: 1;
-            padding: 12px 5px;
-            background-color: #fff;
-            border: none;
-            border-bottom: 3px solid transparent;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: bold;
-            color: #555;
-            transition: all 0.2s;
-        }
-
-        .tab-btn:hover {
-            background-color: #f1f1f1;
-        }
-
-        .tab-btn.active {
-            color: #000;
-            border-bottom: 3px solid #ffe812; /* 카카오 옐로우 */
-        }
-
-        /* 검색 영역 스타일 (탭 기능으로 대체할 수도 있지만 일단 유지) */
-        #search-box {
-            padding: 15px;
+        /* 서비스 제목 스타일 */
+        #service-title {
+            padding: 20px 20px 10px 20px;
             background-color: #ffffff;
-            border-bottom: 1px solid #ddd;
+            font-size: 24px;
+            color: #333;
+            text-align: center;
+        }
+
+        /* 검색 영역 스타일 */
+        #search-box {
+            padding: 10px 20px 20px 20px;
+            background-color: #ffffff;
             display: flex;
             gap: 10px;
         }
 
         #keyword {
             flex: 1;
-            padding: 8px;
+            padding: 10px;
             border: 1px solid #ccc;
             border-radius: 4px;
+            font-size: 14px;
         }
 
         #search-btn {
-            padding: 8px 15px;
+            padding: 10px 15px;
             background-color: #ffe812;
             border: 1px solid #d4c000;
             border-radius: 4px;
@@ -87,11 +93,53 @@
             font-weight: bold;
         }
 
+        /* 탭 메뉴 스타일 (검색창 아래 위치) */
+        #tabs {
+            display: flex;
+            flex-wrap: wrap;
+            background-color: #fff;
+            border-bottom: 1px solid #ddd;
+            border-top: 1px solid #eee;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 12px 2px;
+            background-color: #fff;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: bold;
+            color: #777;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .tab-btn:hover {
+            background-color: #f1f1f1;
+            color: #333;
+        }
+
+        .tab-btn.active {
+            color: #000;
+            border-bottom: 3px solid #ffe812; /* 카카오 옐로우 */
+            background-color: #fcfcfc;
+        }
+
         /* 검색 결과 리스트 스타일 */
         #places-list {
             list-style: none;
             overflow-y: auto;
             flex: 1;
+        }
+
+        .empty-msg {
+            text-align: center;
+            padding: 40px 20px;
+            color: #888;
+            font-size: 14px;
+            line-height: 1.6;
         }
 
         #places-list li {
@@ -158,22 +206,30 @@
 </head>
 <body>
 
+    <div id="loading-overlay">
+        <div class="zzz-text">zzz... 😴</div>
+    </div>
+
     <div id="container">
         <div id="sidebar">
-            <div id="tabs">
-                <button class="tab-btn active" onclick="changeTab('도서관', this)">도서관</button>
-                <button class="tab-btn" onclick="changeTab('만화카페', this)">만화카페</button>
-                <button class="tab-btn" onclick="changeTab('찜질방', this)">찜질방</button>
-                <button class="tab-btn" onclick="changeTab('카페', this)">카페</button>
-                <button class="tab-btn" onclick="changeTab('노래방', this)">노래방</button>
-            </div>
+            <h2 id="service-title">수면 장소 찾기 💤</h2>
 
             <div id="search-box">
-                <input type="text" id="keyword" placeholder="직접 검색어 입력" onkeypress="if(event.keyCode==13) { customSearch(); }">
+                <input type="text" id="keyword" placeholder="장소를 직접 검색해보세요" onkeypress="if(event.keyCode==13) { customSearch(); }">
                 <button id="search-btn" onclick="customSearch()">검색</button>
             </div>
+
+            <div id="tabs">
+                <button class="tab-btn" onclick="changeTab('도서관', this)">도서관 📚</button>
+                <button class="tab-btn" onclick="changeTab('만화카페', this)">만화카페 🛋️</button>
+                <button class="tab-btn" onclick="changeTab('찜질방', this)">찜질방 ♨️</button>
+                <button class="tab-btn" onclick="changeTab('카페', this)">카페 ☕</button>
+                <button class="tab-btn" onclick="changeTab('노래방', this)">노래방 🎤</button>
+            </div>
             
-            <ul id="places-list"></ul>
+            <ul id="places-list">
+                <li class="empty-msg">원하는 휴식처 탭을 선택하거나<br>직접 검색해 보세요!</li>
+            </ul>
         </div>
 
         <div id="map-wrapper">
@@ -184,15 +240,14 @@
     <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=e57825b9ee14bd78fc0b425ebdf9f8dc&libraries=services&autoload=false"></script>
     
     <script>
-        // 전역 변수 선언 (Global variables)
         let map; 
         let markers = []; 
         let ps; 
         let infowindow;
-        let currentLat, currentLng; // 현재 위치 좌표 저장용
-        let currentCategory = '도서관'; // 초기 탭 설정
+        let currentLat, currentLng; 
+        let currentCategory = ''; // 초기에는 아무 탭도 선택되지 않은 상태
 
-        // 1. 현재 위치 가져오기 및 지도 초기화
+        // 1. 위치 가져오기 및 지도 초기화
         function initGeolocation() {
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(function(position) {
@@ -213,20 +268,20 @@
             }
         }
 
-        // 2. 카카오맵 로드 및 렌더링
+        // 2. 맵 렌더링
         function loadMap(lat, lng) {
             kakao.maps.load(function() {
                 const mapContainer = document.getElementById('map'); 
                 const mapOption = {
-                    center: new kakao.maps.LatLng(lat, lng),
-                    level: 5 
+                    center: new kakao.maps.LatLng(lat, lng), // 현재 위치가 지도 중앙에 오도록 설정
+                    level: 4 // 조금 더 가깝게 보이도록 레벨 조정
                 };
 
                 map = new kakao.maps.Map(mapContainer, mapOption);
                 ps = new kakao.maps.services.Places();
                 infowindow = new kakao.maps.InfoWindow({ zIndex: 1 });
 
-                // 내 위치 파란 점(CustomOverlay) 표시
+                // 내 위치 파란 점 표시
                 const myLocationContent = '<div class="my-location-dot"></div>';
                 const myLocationOverlay = new kakao.maps.CustomOverlay({
                     position: new kakao.maps.LatLng(lat, lng),
@@ -234,8 +289,10 @@
                     map: map
                 });
 
-                // 초기 카테고리로 검색 시작
-                searchPlaces(currentCategory);
+                // 지도가 다 준비되었으므로 zzz... 로딩 화면 숨기기
+                document.getElementById('loading-overlay').style.display = 'none';
+
+                // 주의: 처음에는 탭을 누르기 전이므로 searchPlaces()를 호출하지 않고 그대로 둡니다.
             });
         }
 
@@ -243,17 +300,16 @@
         function changeTab(category, btnElement) {
             currentCategory = category;
             
-            // 모든 탭 버튼의 active 클래스 제거 후 클릭된 버튼만 추가
+            // 모든 탭 버튼 active 해제 후 클릭한 버튼만 활성화
             const tabButtons = document.querySelectorAll('.tab-btn');
             tabButtons.forEach(btn => btn.classList.remove('active'));
             btnElement.classList.add('active');
 
-            // 검색창 텍스트 초기화 및 해당 카테고리 검색 실행
             document.getElementById('keyword').value = '';
             searchPlaces(currentCategory);
         }
 
-        // 3-1. 직접 검색창 입력 시 실행 함수
+        // 3-1. 검색창 직접 검색
         function customSearch() {
             const keyword = document.getElementById('keyword').value;
             if (!keyword.replace(/^\s+|\s+$/g, '')) {
@@ -261,74 +317,71 @@
                 return false;
             }
             
-            // 탭 활성화 상태 초기화
+            // 직접 검색 시 탭 활성화 상태 초기화
             const tabButtons = document.querySelectorAll('.tab-btn');
             tabButtons.forEach(btn => btn.classList.remove('active'));
             
-            currentCategory = keyword; // 검색용 카테고리를 직접 입력한 키워드로 대체
+            currentCategory = keyword; 
             searchPlaces(keyword);
         }
 
-        // 4. 키워드로 장소 검색하기
+        // 4. 장소 검색
         function searchPlaces(keyword) {
-            // 내 위치 기준으로 검색 반경 및 거리 정렬 옵션 설정
             const searchOptions = {
                 location: new kakao.maps.LatLng(currentLat, currentLng), 
-                radius: 3000, // 3km 이내
-                sort: kakao.maps.services.SortBy.DISTANCE // 거리순 정렬
+                radius: 3000, 
+                sort: kakao.maps.services.SortBy.DISTANCE 
             };
 
             ps.keywordSearch(keyword, placesSearchCB, searchOptions); 
         }
 
-        // 5. 검색 완료 콜백 함수
+        // 5. 검색 완료 콜백
         function placesSearchCB(data, status, pagination) {
             if (status === kakao.maps.services.Status.OK) {
                 displayPlaces(data); 
             } else if (status === kakao.maps.services.Status.ZERO_RESULT) {
-                // 검색 결과가 없으면 리스트와 마커 지우기
-                document.getElementById('places-list').innerHTML = '<li style="text-align:center;">검색 결과가 존재하지 않습니다.</li>';
+                document.getElementById('places-list').innerHTML = '<li class="empty-msg">주변에 검색 결과가 존재하지 않습니다 🥲</li>';
                 removeMarkers();
                 infowindow.close();
+                // 결과가 없어도 지도는 내 위치 중심으로 이동
+                map.setCenter(new kakao.maps.LatLng(currentLat, currentLng));
             } else if (status === kakao.maps.services.Status.ERROR) {
                 alert('검색 결과 중 오류가 발생했습니다.');
             }
         }
 
-        // 6. 카테고리별 마커 아이콘 색상을 반환하는 함수 (SVG 데이터)
+        // 6. 마커 색상 배정 함수
         function getMarkerIconUrl(category) {
-            let color = "%23333333"; // 기본 검정
-            if (category === "도서관") color = "%234CAF50"; // 초록
-            else if (category === "만화카페") color = "%23FF9800"; // 주황
-            else if (category === "찜질방") color = "%239C27B0"; // 보라
-            else if (category === "카페") color = "%23795548"; // 갈색
-            else if (category === "노래방") color = "%23E91E63"; // 핑크
+            let color = "%23333333"; 
+            if (category === "도서관") color = "%234CAF50"; 
+            else if (category === "만화카페") color = "%23FF9800"; 
+            else if (category === "찜질방") color = "%239C27B0"; 
+            else if (category === "카페") color = "%23795548"; 
+            else if (category === "노래방") color = "%23E91E63"; 
+            // 직접 검색한 키워드일 경우 기본 검정색 사용
 
-            // 핀 모양의 SVG 마커 생성
             return `data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" width="28" height="40" viewBox="0 0 28 40"><path d="M14 0C6.268 0 0 6.268 0 14c0 10.5 14 26 14 26s14-15.5 14-26c0-7.732-6.268-14-14-14z" fill="${color}"/><circle cx="14" cy="14" r="6" fill="%23ffffff"/></svg>`;
         }
 
-        // 7. 검색 결과를 리스트와 지도에 표시
+        // 7. 검색 결과 표시
         function displayPlaces(places) {
             const listEl = document.getElementById('places-list');
             const bounds = new kakao.maps.LatLngBounds(); 
             
-            // 내 위치도 범위에 포함하여 지도가 축소될 때 내 위치가 보이도록 함
+            // 내 위치도 포함해서 지도 크기 조절
             bounds.extend(new kakao.maps.LatLng(currentLat, currentLng));
 
             listEl.innerHTML = '';
             removeMarkers();
             infowindow.close();
 
-            // 현재 선택된 탭(카테고리)에 따른 마커 이미지 설정
             const markerImageUrl = getMarkerIconUrl(currentCategory);
             const markerImageSize = new kakao.maps.Size(28, 40);
             const markerImage = new kakao.maps.MarkerImage(markerImageUrl, markerImageSize, {offset: new kakao.maps.Point(14, 40)});
 
             for (let i = 0; i < places.length; i++) {
                 const placePosition = new kakao.maps.LatLng(places[i].y, places[i].x);
-                
-                // 장소까지의 거리 (미터 단위)
                 const distanceInfo = places[i].distance ? parseInt(places[i].distance) + 'm' : '거리 정보 없음';
 
                 const markerOptions = {
@@ -341,36 +394,30 @@
                 markers.push(marker);
                 bounds.extend(placePosition);
 
-                // 길찾기 링크 생성 (카카오맵 웹 길찾기로 연결)
                 const routeUrl = `https://map.kakao.com/link/to/${places[i].place_name},${places[i].y},${places[i].x}`;
 
-                // 팝업 컨텐츠 구성 (이름, 주소, 거리, 영업시간, 길찾기 버튼)
                 const popupContent = `
                     <div style="padding:15px; font-size:13px; min-width:200px; line-height: 1.5; box-sizing: border-box;">
                         <strong style="display:block; font-size:15px; margin-bottom:5px;">${places[i].place_name}</strong>
                         <span style="color:#666; display:block;">${places[i].road_address_name || places[i].address_name}</span>
                         <span style="color:#007bff; display:block; font-weight:bold; margin-top:3px;">📍 내 위치에서 ${distanceInfo}</span>
-                        <span style="color:#28a745; display:block; font-size:12px; margin-top:3px;">⏰ 영업시간: 확인필요 (API 미제공)</span>
+                        <span style="color:#28a745; display:block; font-size:12px; margin-top:3px;">⏰ 영업시간: 현장 확인 필요</span>
                         <a href="${routeUrl}" target="_blank" class="route-btn">도보/대중교통 길찾기 🚶</a>
                     </div>
                 `;
 
-                // 마커 클릭 이벤트 설정
                 kakao.maps.event.addListener(marker, 'click', function() {
                     infowindow.setContent(popupContent);
                     infowindow.open(map, marker);
                 });
 
-                // 리스트 아이템 HTML 구성
                 const li = document.createElement('li');
                 li.innerHTML = `
                     <h5>${places[i].place_name}</h5>
                     <p>${places[i].road_address_name || places[i].address_name}</p>
                     <p class="distance-info">📍 내 위치에서 ${distanceInfo}</p>
-                    <p style="color: #28a745; font-size: 12px; margin-top: 3px;">⏰ 영업시간: 09:00 ~ 22:00 (예시)</p>
                 `;
                 
-                // 리스트 클릭 이벤트 설정
                 li.onclick = function() {
                     map.setCenter(placePosition);
                     infowindow.setContent(popupContent);
@@ -380,11 +427,10 @@
                 listEl.appendChild(li);
             }
 
-            // 검색된 마커들과 내 위치가 모두 보이도록 지도 범위 재설정
             map.setBounds(bounds);
         }
 
-        // 8. 기존 마커들 모두 제거
+        // 8. 기존 마커 지우기
         function removeMarkers() {
             for (let i = 0; i < markers.length; i++) {
                 markers[i].setMap(null);
@@ -392,7 +438,7 @@
             markers = [];
         }
 
-        // 페이지 로드 완료 시 실행
+        // 스크립트 로드 시 최초 1회 실행
         window.onload = initGeolocation;
     </script>
 </body>
